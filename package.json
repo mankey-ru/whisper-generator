@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Using whisper.cpp and ffmpeg to generate transcriptions of audio files and html with clickable timecodes",
   "type": "module",
-  "main": "generate-clickable-transcript.mjs",
+  "main": "start.mjs",
   "bin": {
-    "whisper-html": "./generate-clickable-transcript.mjs"
+    "whisper-html": "./start.mjs"
   },
   "scripts": {
     "start": "node ."
