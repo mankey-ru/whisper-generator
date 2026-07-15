@@ -1,75 +1,18 @@
 #!/usr/bin/env node
-// -@ts-check
+// @ts-check
 
 import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { inspect, parseArgs } from 'node:util';
+import { inspect } from 'node:util';
 
 import { parseWhisperSegments } from './lib/segment-parser.mjs';
 import { generateTranscriptHTML } from './lib/html-generator.mjs';
+import { parseNamedOptions } from './lib/cli-options.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac']; // , '.wav'
-
-// Defaults (override with env or CLI named options)
-
-const DEFAULT_WHISPER_DIR = `C:\\whisper.cpp`;
-
-const CLI_OPTIONS = {
-	help: {
-		type: 'boolean',
-		short: 'h',
-		desc: 'Показать эту справку и выйти',
-	},
-	recurse: {
-		type: 'boolean',
-		short: 'r',
-		default: false,
-		desc: 'Обрабатывать вложенные папки рекурсивно',
-	},
-	force: {
-		type: 'boolean',
-		short: 'f',
-		default: false,
-		desc: 'Принудительно перезаписывать файлы',
-	},
-	whisper: {
-		type: 'string',
-		desc: 'Путь к исполняемому файлу whisper (whisper-cli или main)',
-		default: process.env.WHISPER_EXE || `${DEFAULT_WHISPER_DIR}\\whisper-cli.exe`,
-	},
-	model: {
-		type: 'string',
-		desc: 'Путь к модели whisper (ggml-*.bin)',
-		default: process.env.WHISPER_MODEL || `${DEFAULT_WHISPER_DIR}\\models\\ggml-large-v3.bin`,
-	},
-	input: {
-		type: 'string',
-		desc: 'Путь к входной папке/файлу',
-		default: 'input',
-	},
-	lang: {
-		type: 'string',
-		short: 'l',
-		desc: 'Язык распознавания (ru, en, auto и т.д.)',
-		default: process.env.LANGUAGE || 'ru',
-	},
-	keep: {
-		type: 'boolean',
-		short: 'k',
-		desc: 'Сохранить промежуточные файлы',
-		default: false,
-	},
-	threads: {
-		type: 'string', // будем парсить в int
-		desc: 'Количество потоков (по умолчанию из DEFAULTS)',
-		default: process.env.THREADS || '12',
-	},
-};
 
 async function fileExists(p) {
 	try {
@@ -79,6 +22,8 @@ async function fileExists(p) {
 		return false;
 	}
 }
+
+const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac']; // , '.wav'
 
 async function findAudioFiles(dir, recurse) {
 	const results = [];
@@ -162,7 +107,7 @@ async function runWhisper(wavFile, opts) {
 async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName) {
 	if (!(await fileExists(jsonFilePath))) {
 		console.warn(
-			`\t⚠️  JSON file not found: ${path.basename(jsonFilePath)}, skipping HTML generation`,
+			`\t ⚠️ JSON file not found: ${path.basename(jsonFilePath)}, skipping HTML generation`,
 		);
 		return false;
 	}
@@ -178,7 +123,7 @@ async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName)
 		console.log(`\t✅ Generated HTML: ${path.basename(htmlFilePath)}`);
 		return true;
 	} catch (err) {
-		console.warn(`\t❌ Failed to generate HTML: ${err.message}`);
+		console.error(`\t❌ Failed to generate HTML: ${err.message}`);
 		return false;
 	}
 }
@@ -294,35 +239,12 @@ async function runBatch(opts) {
 	console.log('\n Processing complete.');
 }
 
-// async function runSingle(audioPath, jsonPath) {
-// 	if (!audioPath || !jsonPath) {
-// 		console.error('Использование:');
-// 		console.error('  node start.mjs <audio.mp3> <audio.json>');
-// 		console.error('  или: npm start -- <audio.mp3> <audio.json>');
-// 		process.exit(1);
-// 	}
-
-// 	const audioName = path.basename(audioPath);
-// 	const jsonRaw = await fs.readFile(jsonPath, 'utf8');
-// 	const json = JSON.parse(jsonRaw);
-
-// 	const segments = parseWhisperSegments(json);
-
-// 	if (segments.length === 0) {
-// 		console.warn('⚠️  Не найдено ни одного сегмента в JSON');
-// 	}
-
-// 	const html = generateTranscriptHTML(segments, jsonFilePath);
-// 	const outName = path.basename(audioPath, path.extname(audioPath)) + '.html';
-
-// 	await fs.writeFile(outName, html, 'utf8');
-
-// 	console.log(`✅ Создан файл: ${outName}`);
-// 	console.log('   Положи его рядом с аудиофайлом и открой в браузере.');
-// }
-
 async function main() {
 	const opts = parseNamedOptions();
+	// Resolve input dir relative to this script (preserves previous behavior)
+	if (opts.input && !path.isAbsolute(opts.input)) {
+		opts.input = path.join(__dirname, opts.input);
+	}
 	await runBatch(opts);
 }
 
@@ -330,67 +252,6 @@ main().catch((err) => {
 	console.error('❌ Ошибка:', err);
 	process.exit(1);
 });
-
-/**
- * Парсит именованные аргументы с помощью util.parseArgs
- */
-function parseNamedOptions(argv = process.argv.slice(2)) {
-	const options = CLI_OPTIONS;
-
-	const { values, positionals } = parseArgs({
-		args: argv,
-		options,
-		allowPositionals: true,
-		allowNegative: false, // если нужно --no-xxx
-		strict: true, // кидает ошибку на неизвестные флаги
-	});
-
-	const opts = {};
-
-	if (values.help) {
-		printHelp();
-		process.exit(0);
-	}
-
-	if (values.recurse !== undefined) opts.recurse = values.recurse;
-	if (values.force !== undefined) opts.force = values.force;
-	if (values.whisper !== undefined) opts.whisper = values.whisper;
-	if (values.model !== undefined) opts.model = values.model;
-	if (values.input !== undefined) opts.input = values.input;
-	if (values.lang !== undefined) opts.lang = values.lang;
-	if (values.threads !== undefined) {
-		opts.threads = parseInt(values.threads, 10);
-	}
-
-	// Поддержка --whisper-exe (алиас)
-	// parseArgs не поддерживает алиасы автоматически, поэтому вручную
-	// Если нужно — можно добавить проверку по positionals или вручную
-
-	// Resolve input dir
-	if (opts.input && !path.isAbsolute(opts.input)) {
-		opts.input = path.join(__dirname, opts.input);
-	}
-
-	return opts;
-}
-
-function printHelp() {
-	console.log(`
-whisper-generator — batch transcription + clickable HTML
-
-Usage:
-  npm start -- [options]
-  npm start --input ./audio --lang ru --threads 8 -r
-`);
-	for (const [name, opt] of Object.entries(CLI_OPTIONS)) {
-		const short = opt.short ? `-${opt.short}, ` : '    ';
-		const typeInfo = opt.type === 'boolean' ? '' : ` <${opt.type}>`;
-		console.log(`  ${short}--${name}${typeInfo}`);
-		if (opt.desc) {
-			console.log(`      ${opt.desc}`);
-		}
-	}
-}
 
 function printLine(sym = '-') {
 	console.log(sym.repeat(50));
