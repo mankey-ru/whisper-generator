@@ -9,7 +9,7 @@ import { inspect } from 'node:util';
 
 import { parseWhisperSegments } from './lib/segment-parser.mjs';
 import { generateTranscriptHTML } from './lib/html-generator.mjs';
-import { parseNamedOptions } from './lib/cli-options.mjs';
+import { DEFAULT_WHISPER_DIR, parseNamedOptions } from './lib/cli-options.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +23,7 @@ async function fileExists(p) {
 	}
 }
 
-const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac']; // , '.wav'
+const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac', '.mp4']; // , '.wav'
 
 async function findAudioFiles(dir, recurse) {
 	const results = [];
@@ -95,11 +95,27 @@ async function runWhisper(wavFile, opts) {
 		opts.lang,
 		'-t',
 		String(opts.threads),
-		//`--output-file "${path.basename(wavFile, path.extname(wavFile))}"`,
 		'--output-json',
 		// '--output-txt',
 		'--print-progress',
 	];
+	const vadArgs = [
+		'--vad',
+		'--vad-model',
+		`${DEFAULT_WHISPER_DIR}/models/ggml-silero-v6.2.0.bin`,
+		'--vad-min-silence-duration-ms',
+		'1200',
+		'--vad-min-speech-duration-ms',
+		'300',
+		// -of of --
+		// '-osrt', // включить вывод файла субтитров в формате SRT.
+		//`--output-file "${path.basename(wavFile, path.extname(wavFile))}"`,
+		//'--output-file',
+		//'output'
+	];
+	if (opts.usevad) {
+		args.push(...vadArgs);
+	}
 	const code = await runCmd(opts.whisper, args);
 	return code === 0;
 }
@@ -136,7 +152,7 @@ async function runBatch(opts) {
 	const files = await findAudioFiles(inputDir, opts.recurse);
 
 	if (files.length === 0) {
-		console.log(`No audio files found in ${inputDir}`);
+		console.log(`No input files found in ${inputDir}`);
 		console.log(`Supported extensions: ${AUDIO_EXTS.join(', ')}`);
 		console.log('Put files into the input directory and run again.');
 		return;
@@ -183,6 +199,7 @@ async function runBatch(opts) {
 				{ colors: true, compact: false, depth: 2 },
 			)}`,
 		);
+		printLine('=');
 
 		const txtExists = true; //await fileExists(txtFilePath);
 		const jsonExists = await fileExists(jsonFilePath);
@@ -239,12 +256,35 @@ async function runBatch(opts) {
 	console.log('\n Processing complete.');
 }
 
+function printBanner(opts) {
+	const logo = `
+ _       ____    _                      ______         
+| |     / / /_  (_)________  ___  _____/ ____/__  ____ 
+| | /| / / __ \\/ / ___/ __ \\/ _ \\/ ___/ / __/ _ \\/ __ \\
+| |/ |/ / / / / (__  ) /_/ /  __/ /  / /_/ /  __/ / / /
+|__/|__/_/ /_/_/____/ .___/\\___/_/   \\____/\\___/_/ /_/ 
+                   /_/                                 
+`;
+	console.log(logo);
+	console.log('  Whisper Generator — batch transcription → clickable HTML');
+	printLine('=');
+	console.log('Options:');
+	const keys = ['input', 'recurse', 'force', 'keep', 'lang', 'threads', 'whisper', 'model'];
+	for (const key of keys) {
+		const value = opts[key];
+		console.log(`  ${key.padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
+	}
+	printLine('=');
+	console.log();
+}
+
 async function main() {
 	const opts = parseNamedOptions();
 	// Resolve input dir relative to this script (preserves previous behavior)
 	if (opts.input && !path.isAbsolute(opts.input)) {
 		opts.input = path.join(__dirname, opts.input);
 	}
+	printBanner(opts);
 	await runBatch(opts);
 }
 
