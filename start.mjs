@@ -95,10 +95,14 @@ async function runWhisper(wavFile, opts) {
 		opts.lang,
 		'-t',
 		String(opts.threads),
-		'--output-json',
+		// full JSON needed for token probabilities when colouring HTML
+		opts.colors ? '--output-json-full' : '--output-json',
 		// '--output-txt',
 		'--print-progress',
 	];
+	if (opts.colors) {
+		args.push('--print-colors');
+	}
 	const vadArgs = [
 		'--vad',
 		'--vad-model',
@@ -120,7 +124,7 @@ async function runWhisper(wavFile, opts) {
 	return code === 0;
 }
 
-async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName) {
+async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName, opts = {}) {
 	if (!(await fileExists(jsonFilePath))) {
 		console.warn(
 			`\t ⚠️ JSON file not found: ${path.basename(jsonFilePath)}, skipping HTML generation`,
@@ -134,7 +138,9 @@ async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName)
 		const segments = parseWhisperSegments(json);
 		if (segments.length === 0) return false;
 
-		const html = generateTranscriptHTML(segments, originalFileName);
+		const html = generateTranscriptHTML(segments, originalFileName, {
+			printColours: opts.colors !== false,
+		});
 		await fs.writeFile(htmlFilePath, html, 'utf8');
 		console.log(`\t✅ Generated HTML: ${path.basename(htmlFilePath)}`);
 		return true;
@@ -238,7 +244,12 @@ async function runBatch(opts) {
 			console.log(`\t✓ Txt and JSON exist`);
 		}
 
-		const htmlOk = await generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName);
+		const htmlOk = await generateHtmlForFile(
+			jsonFilePath,
+			htmlFilePath,
+			originalFileName,
+			opts,
+		);
 		if (!htmlOk) {
 			continue;
 		}
@@ -269,7 +280,17 @@ function printBanner(opts) {
 	console.log('  Whisper Generator — batch transcription → clickable HTML');
 	printLine('=');
 	console.log('Options:');
-	const keys = ['input', 'recurse', 'force', 'keep', 'lang', 'threads', 'whisper', 'model'];
+	const keys = [
+		'input',
+		'recurse',
+		'force',
+		'keep',
+		'colors',
+		'lang',
+		'threads',
+		'whisper',
+		'model',
+	];
 	for (const key of keys) {
 		const value = opts[key];
 		console.log(`  ${key.padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);

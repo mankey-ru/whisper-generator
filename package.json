@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node .",
-    "startkeep": "node . -- --keep"
+    "start-keep": "npm start -- --keep",
+    "start-tmp": "npm start -- --keep --input ./tmp"
   },
   "author": "mankey-ru",
   "license": "MIT",
