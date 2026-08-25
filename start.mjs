@@ -110,51 +110,50 @@ async function ensureWav(inputFile, wavFile) {
 }
 
 /**
+ * Собирает argv для whisper-cli: пары [flag, value], одиночные флаги и условные группы.
+ * @param {string} wavFile
+ * @param {import('./types.js').CliOptions} opts
+ * @returns {string[]}
+ */
+function buildWhisperArgs(wavFile, opts) {
+	const vadModel = `${DEFAULT_WHISPER_DIR}/models/ggml-silero-v6.2.0.bin`;
+
+	// Long names from `whisper-cli --help`
+	return [
+		['--model', opts.model],
+		['--file', wavFile],
+		['--language', opts.lang],
+		['--max-context', 32],
+		['--threads', opts.threads],
+
+		// full JSON needed for token probabilities when colouring HTML
+		opts.colors ? '--output-json-full' : '--output-json',
+		// '--output-txt',
+		'--print-progress',
+		opts.colors && '--print-colors',
+
+		opts.usevad && [
+			'--vad',
+			['--vad-model', vadModel],
+			['--vad-min-silence-duration-ms', 1200],
+			['--vad-min-speech-duration-ms', 300],
+			// '--output-srt',
+			// ['--output-file', 'output'],
+		],
+	]
+		.flat(Infinity)
+		.filter((x) => x !== false && x != null)
+		.map(String);
+}
+
+/**
  * @param {string} wavFile
  * @param {import('./types.js').CliOptions} opts
  * @returns {Promise<boolean>}
  */
 async function runWhisper(wavFile, opts) {
 	console.log('\tRunning whisper.cpp...');
-	/** @type {string[]} */
-	const args = [
-		'-m',
-		opts.model,
-		'-f',
-		wavFile,
-		'-l',
-		'--max-context',
-		'32',
-		opts.lang,
-		'-t',
-		String(opts.threads),
-		// full JSON needed for token probabilities when colouring HTML
-		opts.colors ? '--output-json-full' : '--output-json',
-		// '--output-txt',
-		'--print-progress',
-	];
-	if (opts.colors) {
-		args.push('--print-colors');
-	}
-	/** @type {string[]} */
-	const vadArgs = [
-		'--vad',
-		'--vad-model',
-		`${DEFAULT_WHISPER_DIR}/models/ggml-silero-v6.2.0.bin`,
-		'--vad-min-silence-duration-ms',
-		'1200',
-		'--vad-min-speech-duration-ms',
-		'300',
-		// -of of --
-		// '-osrt', // включить вывод файла субтитров в формате SRT.
-		//`--output-file "${path.basename(wavFile, path.extname(wavFile))}"`,
-		//'--output-file',
-		//'output'
-	];
-	if (opts.usevad) {
-		args.push(...vadArgs);
-	}
-	const code = await runCmd(opts.whisper, args);
+	const code = await runCmd(opts.whisper, buildWhisperArgs(wavFile, opts));
 	return code === 0;
 }
 
