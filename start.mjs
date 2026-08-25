@@ -14,6 +14,10 @@ import { DEFAULT_WHISPER_DIR, parseNamedOptions } from './lib/cli-options.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * @param {string} p
+ * @returns {Promise<boolean>}
+ */
 async function fileExists(p) {
 	try {
 		await fs.access(p);
@@ -23,10 +27,21 @@ async function fileExists(p) {
 	}
 }
 
+/** @type {readonly string[]} */
 const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac', '.mp4']; // , '.wav'
 
+/**
+ * @param {string} dir
+ * @param {boolean} recurse
+ * @returns {Promise<string[]>}
+ */
 async function findAudioFiles(dir, recurse) {
+	/** @type {string[]} */
 	const results = [];
+	/**
+	 * @param {string} current
+	 * @returns {Promise<void>}
+	 */
 	async function walk(current) {
 		let entries;
 		try {
@@ -50,19 +65,29 @@ async function findAudioFiles(dir, recurse) {
 	return results;
 }
 
+/**
+ * @param {string} cmd
+ * @param {readonly string[]} args
+ * @returns {Promise<number>}
+ */
 function runCmd(cmd, args) {
 	return new Promise((resolve) => {
 		const child = spawn(cmd, args, { stdio: 'inherit' });
-		child.on('error', (err) => {
+		child.on('error', (/** @type {Error} */ err) => {
 			console.error(`Failed to launch ${cmd}:`, err.message);
 			resolve(1);
 		});
-		child.on('close', (code) => {
+		child.on('close', (/** @type {number | null} */ code) => {
 			resolve(code ?? 1);
 		});
 	});
 }
 
+/**
+ * @param {string} inputFile
+ * @param {string} wavFile
+ * @returns {Promise<boolean>}
+ */
 async function ensureWav(inputFile, wavFile) {
 	if (await fileExists(wavFile)) return true;
 	console.log('  Converting to WAV (16kHz mono)...');
@@ -84,14 +109,22 @@ async function ensureWav(inputFile, wavFile) {
 	return code === 0;
 }
 
+/**
+ * @param {string} wavFile
+ * @param {import('./types.js').CliOptions} opts
+ * @returns {Promise<boolean>}
+ */
 async function runWhisper(wavFile, opts) {
 	console.log('\tRunning whisper.cpp...');
+	/** @type {string[]} */
 	const args = [
 		'-m',
 		opts.model,
 		'-f',
 		wavFile,
 		'-l',
+		'--max-context',
+		'32',
 		opts.lang,
 		'-t',
 		String(opts.threads),
@@ -103,6 +136,7 @@ async function runWhisper(wavFile, opts) {
 	if (opts.colors) {
 		args.push('--print-colors');
 	}
+	/** @type {string[]} */
 	const vadArgs = [
 		'--vad',
 		'--vad-model',
@@ -124,6 +158,13 @@ async function runWhisper(wavFile, opts) {
 	return code === 0;
 }
 
+/**
+ * @param {string} jsonFilePath
+ * @param {string} htmlFilePath
+ * @param {string} originalFileName
+ * @param {Partial<Pick<import('./types.js').CliOptions, 'colors'>>} [opts]
+ * @returns {Promise<boolean>}
+ */
 async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName, opts = {}) {
 	if (!(await fileExists(jsonFilePath))) {
 		console.warn(
@@ -134,22 +175,28 @@ async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName,
 	// console.log(`\tGenerating HTML for: ${path.basename(jsonFilePath)}`);
 	try {
 		const jsonRaw = await fs.readFile(jsonFilePath, 'utf8');
+		/** @type {import('./types.js').WhisperJson} */
 		const json = JSON.parse(jsonRaw);
 		const segments = parseWhisperSegments(json);
 		if (segments.length === 0) return false;
 
 		const html = generateTranscriptHTML(segments, originalFileName, {
-			printColours: opts.colors !== false,
+			colors: opts.colors !== false,
 		});
 		await fs.writeFile(htmlFilePath, html, 'utf8');
 		console.log(`\t✅ Generated HTML: ${path.basename(htmlFilePath)}`);
 		return true;
 	} catch (err) {
-		console.error(`\t❌ Failed to generate HTML: ${err.message}`);
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(`\t❌ Failed to generate HTML: ${message}`);
 		return false;
 	}
 }
 
+/**
+ * @param {import('./types.js').CliOptions} opts
+ * @returns {Promise<void>}
+ */
 async function runBatch(opts) {
 	const inputDir = opts.input;
 
@@ -227,10 +274,12 @@ async function runBatch(opts) {
 					const jsonOutputFilePathNew = jsonOutputFilePath.replace(/\.wav\.json$/, '.json');
 					console.log(`jsonOutputFilePath=`, jsonOutputFilePath);
 					console.log(`jsonOutputFilePathNew=`, jsonOutputFilePathNew);
-					await fs.rename(jsonOutputFilePath, jsonOutputFilePathNew, (err) => {
-						if (err) console.error(`Ошибка для ${jsonOutputFilePath}:`, err);
-						else console.log(`Переименован: ${jsonOutputFilePath} → ${jsonOutputFilePathNew}`);
-					});
+					try {
+						await fs.rename(jsonOutputFilePath, jsonOutputFilePathNew);
+						console.log(`Переименован: ${jsonOutputFilePath} → ${jsonOutputFilePathNew}`);
+					} catch (err) {
+						console.error(`Ошибка для ${jsonOutputFilePath}:`, err);
+					}
 				}
 				// else {
 				// 	console.log(`\t✓ Wav exists: ${txtFilePath}`);
@@ -267,6 +316,10 @@ async function runBatch(opts) {
 	console.log('\n Processing complete.');
 }
 
+/**
+ * @param {import('./types.js').CliOptions} opts
+ * @returns {void}
+ */
 function printBanner(opts) {
 	const logo = `
  _       ____    _                      ______         
@@ -280,6 +333,7 @@ function printBanner(opts) {
 	console.log('  Whisper Generator — batch transcription → clickable HTML');
 	printLine('=');
 	console.log('Options:');
+	/** @type {(keyof import('./types.js').CliOptions)[]} */
 	const keys = [
 		'input',
 		'recurse',
@@ -293,12 +347,15 @@ function printBanner(opts) {
 	];
 	for (const key of keys) {
 		const value = opts[key];
-		console.log(`  ${key.padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
+		console.log(`  ${String(key).padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
 	}
 	printLine('=');
 	console.log();
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function main() {
 	const opts = parseNamedOptions();
 	// Resolve input dir relative to this script (preserves previous behavior)
@@ -314,6 +371,10 @@ main().catch((err) => {
 	process.exit(1);
 });
 
+/**
+ * @param {string} [sym]
+ * @returns {void}
+ */
 function printLine(sym = '-') {
 	console.log(sym.repeat(50));
 }

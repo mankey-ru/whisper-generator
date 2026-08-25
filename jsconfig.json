@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"strict": true,
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"maxNodeModuleJsDepth": 0
+	},
+	"include": ["*.mjs", "lib/**/*.mjs", "types.d.ts"],
+	"exclude": ["input", "tmp", "node_modules"]
+}
