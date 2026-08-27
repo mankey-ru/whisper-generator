@@ -116,3 +116,13 @@ export interface BodyMarkupParams {
 	playerMarkup: string;
 	originalFileName: string;
 }
+
+
+export interface FfmpegAudioConfig {
+	inputFile: string;
+	outputFile: string;
+	sampleRate?: number;
+	channels?: number;
+	codec?: string;
+	overwrite?: boolean;
+}
