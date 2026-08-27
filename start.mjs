@@ -90,18 +90,17 @@ function runCmd(cmd, args) {
  */
 async function ensureWav(inputFile, wavFile) {
 	if (await fileExists(wavFile)) return true;
-	console.log('  Converting to WAV (16kHz mono)...');
+	console.log('  Converting to WAV...');
+
+	// TODO: aac support https://claude.ai/chat/18b5650f-9317-4ec0-acb9-dfa98ce398a0
+	// prettier-ignore
 	const code = await runCmd('ffmpeg', [
-		'-i',
-		inputFile,
-		'-ar',
-		'16000',
-		'-ac',
-		'1',
-		'-c:a',
-		'pcm_s16le',
-		wavFile,
-		'-y',
+		'-i', inputFile,       // входной файл
+		'-ar', '16000',        // частота дискретизации: 16 кГц
+		'-ac', '1',            // количество каналов: моно
+		'-c:a', 'pcm_s16le',   // аудиокодек: PCM 16-bit little-endian
+		wavFile,               // выходной файл
+		'-y',                  // перезаписать без подтверждения
 	]);
 	if (code !== 0) {
 		console.error('\t❌ ffmpeg conversion failed');
@@ -292,6 +291,7 @@ async function runBatch(opts) {
 			console.log(`\t✓ Txt and JSON exist`);
 		}
 
+		// prettier-ignore
 		const htmlOk = await generateHtmlForFile(
 			jsonFilePath,
 			htmlFilePath,
