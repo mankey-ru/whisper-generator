@@ -68,11 +68,15 @@ async function findAudioFiles(dir, recurse) {
 /**
  * @param {string} cmd
  * @param {readonly string[]} args
+ * @param {{ cwd?: string }} [options]
  * @returns {Promise<number>}
  */
-function runCmd(cmd, args) {
+function runCmd(cmd, args, options = {}) {
+	console.log(
+		`\tRunning command${options.cwd ? ` (cwd: ${options.cwd})` : ''}:\n\t\t${cmd} ${args.join(' ')}`,
+	);
 	return new Promise((resolve) => {
-		const child = spawn(cmd, args, { stdio: 'inherit' });
+		const child = spawn(cmd, args, { stdio: 'inherit', cwd: options.cwd });
 		child.on('error', (/** @type {Error} */ err) => {
 			console.error(`Failed to launch ${cmd}:`, err.message);
 			resolve(1);
@@ -84,28 +88,44 @@ function runCmd(cmd, args) {
 }
 
 /**
+ * Конвертирует inputFile в wavFile с помощью ffmpeg, если wavFile не существует.
  * @param {string} inputFile
  * @param {string} wavFile
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean>} файл wavFile существует или успешно создан
  */
 async function ensureWav(inputFile, wavFile) {
 	if (await fileExists(wavFile)) return true;
-	console.log('  Converting to WAV...');
+	console.log('\tConverting to WAV...');
 
-	// TODO: aac support https://claude.ai/chat/18b5650f-9317-4ec0-acb9-dfa98ce398a0
+	const inputFileExt = path.extname(inputFile).toLowerCase();
+
+	// AAC которые записаны рекордером андроида (конкретно NotingOS) пишутся в Raw AAC 
+	// и нуждаются в явном указании формата и всё равно выдают ошибки
+	// Input buffer exhausted before END element found	и 	Error submitting packet to decoder: Invalid data found when processing input
+	// но теряются какие-то миллисекунды
 	// prettier-ignore
-	const code = await runCmd('ffmpeg', [
+	const aacArgs = inputFileExt === '.aac' ? [	
+			'-f', 'aac',
+			//'-analyzeduration', '2147483647',
+			//'-probesize', '2147483647',
+	] : [];
+
+	// prettier-ignore
+	const args = [
+		// inputFileExt === '.aac' && ...aacArgs,
 		'-i', inputFile,       // входной файл
 		'-ar', '16000',        // частота дискретизации: 16 кГц
 		'-ac', '1',            // количество каналов: моно
 		'-c:a', 'pcm_s16le',   // аудиокодек: PCM 16-bit little-endian
 		wavFile,               // выходной файл
-		'-y',                  // перезаписать без подтверждения
-	]);
-	if (code !== 0) {
+		'-y',                  // перезаписать без подтверждения		
+		...aacArgs,
+	];
+	const exitCode = await runCmd('ffmpeg', args);
+	if (exitCode !== 0) {
 		console.error('\t❌ ffmpeg conversion failed');
 	}
-	return code === 0;
+	return exitCode === 0;
 }
 
 /**
@@ -115,7 +135,6 @@ async function ensureWav(inputFile, wavFile) {
  * @returns {string[]}
  */
 function buildWhisperArgs(wavFile, opts) {
-	const vadModel = `${DEFAULT_WHISPER_DIR}/models/ggml-silero-v6.2.0.bin`;
 
 	// Long names from `whisper-cli --help`
 	return [
@@ -131,9 +150,9 @@ function buildWhisperArgs(wavFile, opts) {
 		'--print-progress',
 		opts.colors && '--print-colors',
 
-		opts.usevad && [
+		opts.vadModel && [
 			'--vad',
-			['--vad-model', vadModel],
+			['--vad-model', opts.vadModel],
 			['--vad-min-silence-duration-ms', 1200],
 			['--vad-min-speech-duration-ms', 300],
 			// '--output-srt',
@@ -146,14 +165,39 @@ function buildWhisperArgs(wavFile, opts) {
 }
 
 /**
- * @param {string} wavFile
+ * Запускает whisper-cli для wavFilePath и кладёт результат в jsonFilePath.
+ *
+ * whisper-cli на Windows получает argv в ANSI-кодировке, и не-ASCII символы в пути
+ * (например, кириллица) превращаются в '?'. Поэтому запускаем его с cwd = папка файла
+ * и относительным именем, а не-ASCII имя wav на время работы переименовываем в ASCII.
+ * @param {string} wavFilePath
+ * @param {string} jsonFilePath
  * @param {import('./types.js').CliOptions} opts
  * @returns {Promise<boolean>}
  */
-async function runWhisper(wavFile, opts) {
+async function runWhisper(wavFilePath, jsonFilePath, opts) {
 	console.log('\tRunning whisper.cpp...');
-	const code = await runCmd(opts.whisper, buildWhisperArgs(wavFile, opts));
-	return code === 0;
+	const dir = path.dirname(wavFilePath);
+	const wavFileName = path.basename(wavFilePath);
+	const isAsciiName = /^[\x20-\x7e]+$/.test(wavFileName);
+	const whisperWavName = isAsciiName ? wavFileName : `whisper-tmp-${process.pid}.wav`;
+	const whisperWavPath = path.join(dir, whisperWavName);
+
+	if (!isAsciiName) await fs.rename(wavFilePath, whisperWavPath);
+	try {
+		const code = await runCmd(opts.whisper, buildWhisperArgs(whisperWavName, opts), { cwd: dir });
+		if (code !== 0) return false;
+
+		// whisper-cli пишет результат в <file>.wav.json, переименовываем в нужное имя
+		await fs.rename(`${whisperWavPath}.json`, jsonFilePath);
+		return true;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(`\t❌ Failed to get whisper JSON: ${message}`);
+		return false;
+	} finally {
+		if (!isAsciiName) await fs.rename(whisperWavPath, wavFilePath);
+	}
 }
 
 /**
@@ -256,27 +300,15 @@ async function runBatch(opts) {
 		const jsonExists = await fileExists(jsonFilePath);
 		if (!txtExists || !jsonExists || opts.force) {
 			// console.log(`..........Processing: ${originalFileName}`);
-
 			const wavFileOk = await ensureWav(originalFilePath, wavFilePath);
 			if (wavFileOk) {
 				if (await ensureWav(originalFilePath, wavFilePath)) {
-					const whisperOk = await runWhisper(wavFilePath, opts);
+					const whisperOk = await runWhisper(wavFilePath, jsonFilePath, opts);
 					if (!whisperOk) {
 						console.error(
 							`\t❌ Whisper failed for ${wavFilePath} (${originalFileName}), skipping this file`,
 						);
 						continue;
-					}
-					// не работает почему-то задание имени JSON-файла через --output-json, поэтому переименовываем вручную
-					const jsonOutputFilePath = `${wavFilePath}.json`;
-					const jsonOutputFilePathNew = jsonOutputFilePath.replace(/\.wav\.json$/, '.json');
-					console.log(`jsonOutputFilePath=`, jsonOutputFilePath);
-					console.log(`jsonOutputFilePathNew=`, jsonOutputFilePathNew);
-					try {
-						await fs.rename(jsonOutputFilePath, jsonOutputFilePathNew);
-						console.log(`Переименован: ${jsonOutputFilePath} → ${jsonOutputFilePathNew}`);
-					} catch (err) {
-						console.error(`Ошибка для ${jsonOutputFilePath}:`, err);
 					}
 				}
 				// else {
@@ -346,7 +378,7 @@ function printBanner(opts) {
 	];
 	for (const key of keys) {
 		const value = opts[key];
-		console.log(`  ${String(key).padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
+		console.log(`\t${String(key).padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
 	}
 	printLine('=');
 	console.log();

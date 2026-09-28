@@ -9,7 +9,8 @@
 		"moduleResolution": "NodeNext",
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
-		"maxNodeModuleJsDepth": 0
+		"maxNodeModuleJsDepth": 0,
+		"types": ["node"]
 	},
 	"include": ["*.mjs", "lib/**/*.mjs", "types.d.ts"],
 	"exclude": ["input", "tmp", "node_modules"]

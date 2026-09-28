@@ -18,7 +18,7 @@ Drop files into `input/` (or another folder), run the tool, and open the matchin
 - Batch processing of audio in a folder (optional recursion into subfolders)
 - Converts media to 16 kHz mono WAV via ffmpeg when needed
 - Runs whisper.cpp and builds HTML from its JSON output
-- Optional **VAD** (Voice Activity Detection) via Silero (`--usevad`)
+- Optional **VAD** (Voice Activity Detection) via Silero (`--vadModel`)
 - Interactive transcript: click a line or timestamp to seek the player
 - Live highlight of the current segment while audio plays
 - In-page search and **Download SRT**
@@ -32,7 +32,7 @@ Drop files into `input/` (or another folder), run the tool, and open the matchin
 | **Node.js** ≥ 18 | Runs `start.mjs` |
 | **ffmpeg** | Converts input audio/video to WAV (`ffmpeg` on `PATH`) |
 | **whisper.cpp** | Binary such as `whisper-cli` / `main`, plus a `ggml-*.bin` model |
-| **Silero VAD model** (optional) | Only if you use `--usevad` (`ggml-silero-v6.2.0.bin` under the whisper models dir) |
+| **Silero VAD model** (optional) | Only if you use `--vadModel` (`ggml-silero-v6.2.0.bin` under the whisper models dir) |
 
 No npm runtime dependencies beyond Node itself (`"type": "module"` CLI).
 
@@ -75,7 +75,7 @@ whisper-html [options]
 | `--recurse` | `-r` | `false` | Process nested folders |
 | `--force` | `-f` | `false` | Re-run whisper even if JSON already exists |
 | `--keep` | `-k` | `false` | Keep intermediate `.wav` and `.json` files |
-| `--usevad` | | `false` | Enable whisper.cpp VAD (Silero model + duration thresholds) |
+| `--vadModel <path>`| `` |  | Enable whisper.cpp VAD (Silero model + duration thresholds) |
 | `--lang <code>` | `-l` | `ru` (or `LANGUAGE`) | Recognition language (`ru`, `en`, `auto`, …) |
 | `--threads <n>` | | `12` (or `THREADS`) | whisper.cpp thread count |
 | `--whisper <path>` | | `WHISPER_EXE` or `P:\!Whisper.cpp\whisper-cli.exe` | Path to whisper binary |
@@ -89,9 +89,6 @@ npm start -- --help
 
 # Recursive batch, English, keep intermediates
 npm start -- --input ./input --lang en -r -k
-
-# Debug-friendly: VAD + keep intermediates
-npm start -- --input ./tmp --usevad --keep
 
 # Force re-transcribe with a custom model
 npm start -- -f --model /path/to/ggml-medium.bin --whisper /path/to/whisper-cli
@@ -117,14 +114,11 @@ WAV is not listed as a primary input extension; the pipeline produces 16 kHz mon
 For each audio file `name.ext` in the input tree:
 
 1. **Convert** → `name.wav` (16 kHz, mono, PCM) if missing — via ffmpeg  
-2. **Transcribe** → whisper.cpp with `--output-json` (and VAD flags if `--usevad`)  
 3. **Normalize** JSON filename to `name.json`  
 4. **Generate** → `name.html` (standalone page: player + transcript)  
 5. **Cleanup** — delete `.wav` and `.json` unless `--keep`
 
 Existing JSON is reused unless `--force` is set; HTML is regenerated from that JSON.
-
-With `--usevad`, whisper is invoked with `--vad`, `--vad-model` pointing at `ggml-silero-v6.2.0.bin` under the default whisper directory, plus min silence/speech duration settings.
 
 ## Output HTML
 

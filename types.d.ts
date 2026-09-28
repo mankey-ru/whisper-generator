@@ -69,6 +69,8 @@ export interface CliOptionDefinition {
 	short?: string;
 	default?: boolean | string;
 	desc: string;
+	/** Override default coerce (boolean→Boolean, string→String), e.g. threads → number */
+	cast?: (value: boolean | string) => unknown;
 }
 
 /** Parsed runtime options used by start.mjs / batch pipeline */
@@ -76,10 +78,10 @@ export interface CliOptions {
 	recurse: boolean;
 	force: boolean;
 	whisper: string;
+	vadModel: string;
 	model: string;
 	input: string;
 	lang: string;
-	usevad: boolean;
 	keep: boolean;
 	/** Colour tokens by confidence in HTML */
 	colors: boolean;
