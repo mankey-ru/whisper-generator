@@ -96,6 +96,8 @@ Model fields:
 
 `npm run get` fetches every non-skipped model that is missing from the models folder.
 
+The config shape is typed as `AppConfig` in `types.d.ts`: the editor (or `npx -p typescript tsc -p jsconfig.json`) flags unknown fields, a wrong `sourceType` or `sourceParams` that do not match it.
+
 ## Usage
 
 ```bash

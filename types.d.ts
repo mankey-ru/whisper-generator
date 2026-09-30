@@ -133,3 +133,45 @@ export interface FfmpegAudioConfig {
 	codec?: string;
 	overwrite?: boolean;
 }
+
+/** Fields shared by every model entry in config.js */
+interface ModelBase {
+	/** Unique id, used by --modelKey and QUANTIZE keyFrom */
+	key: string;
+	/** File name inside <whisperDir>/models */
+	name: string;
+	/** Model picked when --modelKey is not given */
+	isDefault?: boolean;
+	/** Silero VAD model; excluded from the --modelKey list */
+	isVAD?: boolean;
+	/** npm run get leaves this model alone */
+	skip?: boolean;
+}
+
+/** Model downloaded as-is */
+export interface UrlModel extends ModelBase {
+	sourceType: 'URL';
+	sourceParams: {
+		url: string;
+	};
+}
+
+/** Model produced by whisper.cpp quantize from another model */
+export interface QuantizeModel extends ModelBase {
+	sourceType: 'QUANTIZE';
+	sourceParams: {
+		/** Key of the source model */
+		keyFrom: string;
+		/** Extra quantize args, e.g. ['q8_0'] */
+		cliOpts: string[];
+	};
+}
+
+export type ModelConfig = UrlModel | QuantizeModel;
+
+/** Default export of config.js */
+export interface AppConfig {
+	/** whisper.cpp root: models/ and build/bin/ live here */
+	whisperDir: string;
+	models: ModelConfig[];
+}

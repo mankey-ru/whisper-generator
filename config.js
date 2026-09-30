@@ -1,3 +1,6 @@
+// @ts-check
+
+/** @type {import('./types.js').AppConfig} */
 export default {
 	whisperDir: 'P:\\!Whisper.cpp',
 	models: [
