@@ -9,7 +9,7 @@ import { inspect } from 'node:util';
 
 import { parseWhisperSegments } from './lib/segment-parser.mjs';
 import { generateTranscriptHTML } from './lib/html-generator.mjs';
-import { DEFAULT_WHISPER_DIR, parseNamedOptions } from './lib/cli-options.mjs';
+import { parseNamedOptions } from './lib/cli-options.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
