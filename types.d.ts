@@ -78,7 +78,11 @@ export interface CliOptions {
 	recurse: boolean;
 	force: boolean;
 	whisper: string;
-	vadModel: string;
+	/** Absent when config.mjs has no isVAD model — VAD is then off */
+	vadModel?: string;
+	/** Key of a model in config.mjs */
+	modelKey: string;
+	/** Model path resolved from modelKey */
 	model: string;
 	input: string;
 	lang: string;

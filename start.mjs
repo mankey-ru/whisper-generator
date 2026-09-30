@@ -373,6 +373,7 @@ function printBanner(opts) {
 		'lang',
 		'threads',
 		'whisper',
+		'modelKey',
 		'model',
 	];
 	for (const key of keys) {

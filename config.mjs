@@ -3,6 +3,7 @@ export default {
 	models: [
 		{
 			key: 'LV3',
+			isDefault: true,
 			name: 'ggml-large-v3.bin',
 			sourceType: 'URL',
 			sourceParams: {
@@ -38,6 +39,7 @@ export default {
 		},
 		{
 			key: 'SILERO-V6',
+			isVAD: true,
 			name: 'ggml-silero-v6.2.0.bin',
 			sourceType: 'URL',
 			sourceParams: {
