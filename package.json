@@ -11,7 +11,8 @@
     "start": "node .",
     "start-debug": "npm start -- --debug",
     "start-tmp": "npm start -- --debug --input ./tmp",
-    "get": "node ./lib/get-models.js"
+    "get": "node ./lib/get-models.js",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "author": "mankey-ru",
   "license": "MIT",
@@ -19,6 +20,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.3.0"
+    "@types/node": "^26.3.0",
+    "typescript": "^7.0.2"
   }
 }

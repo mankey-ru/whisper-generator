@@ -96,7 +96,7 @@ Model fields:
 
 `npm run get` fetches every non-skipped model that is missing from the models folder.
 
-The config shape is typed as `AppConfig` in `types.d.ts`: the editor (or `npx -p typescript tsc -p jsconfig.json`) flags unknown fields, a wrong `sourceType` or `sourceParams` that do not match it.
+The config shape is typed as `AppConfig` in `types.d.ts`: the editor (or `npm run typecheck`) flags unknown fields, a wrong `sourceType` or `sourceParams` that do not match it.
 
 ## Usage
 
@@ -105,6 +105,7 @@ npm start -- [options]
 npm run start-debug        # same as: npm start -- --debug
 npm run start-tmp          # same as: npm start -- --debug --input ./tmp
 npm run get                # download / quantize models from config.js
+npm run typecheck          # tsc over JSDoc types (no emit)
 node start.js [options]
 # after npm link / install of the bin:
 whisper-html [options]
