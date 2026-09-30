@@ -7,9 +7,9 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { inspect } from 'node:util';
 
-import { parseWhisperSegments } from './lib/segment-parser.mjs';
-import { generateTranscriptHTML } from './lib/html-generator.mjs';
-import { parseNamedOptions } from './lib/cli-options.mjs';
+import { parseWhisperSegments } from './lib/segment-parser.js';
+import { generateTranscriptHTML } from './lib/html-generator.js';
+import { parseNamedOptions } from './lib/cli-options.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

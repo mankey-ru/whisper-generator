@@ -35,8 +35,8 @@ Never:
 ## Project Docs
 
 Read on demand, not upfront:
-- [README.md](README.md) - features, `config.mjs` model fields, CLI options, pipeline
-  and packing rules, project layout. Read before changing CLI options, `config.mjs`
+- [README.md](README.md) - features, `config.js` model fields, CLI options, pipeline
+  and packing rules, project layout. Read before changing CLI options, `config.js`
   schema, pipeline stages or output format; update it in the same commit when
   behavior it describes changes.
 - [TODO.md](TODO.md) - backlog (in Russian). Read when I ask what to do next or

@@ -73,14 +73,14 @@ export interface CliOptionDefinition {
 	cast?: (value: boolean | string) => unknown;
 }
 
-/** Parsed runtime options used by start.mjs / batch pipeline */
+/** Parsed runtime options used by start.js / batch pipeline */
 export interface CliOptions {
 	recurse: boolean;
 	force: boolean;
 	whisper: string;
-	/** Absent when config.mjs has no isVAD model — VAD is then off */
+	/** Absent when config.js has no isVAD model — VAD is then off */
 	vadModel?: string;
-	/** Key of a model in config.mjs */
+	/** Key of a model in config.js */
 	modelKey: string;
 	/** Model path resolved from modelKey */
 	model: string;

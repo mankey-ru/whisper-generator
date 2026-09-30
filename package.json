@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "description": "Using whisper.cpp and ffmpeg to generate transcriptions of audio files and html with clickable timecodes",
   "type": "module",
-  "main": "start.mjs",
+  "main": "start.js",
   "bin": {
-    "whisper-html": "./start.mjs"
+    "whisper-html": "./start.js"
   },
   "scripts": {
     "start": "node .",
     "start-debug": "npm start -- --debug",
     "start-tmp": "npm start -- --debug --input ./tmp",
-    "get": "node ./lib/get-models.mjs"
+    "get": "node ./lib/get-models.js"
   },
   "author": "mankey-ru",
   "license": "MIT",

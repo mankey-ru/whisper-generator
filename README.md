@@ -18,8 +18,8 @@ Drop files into `input/` (or another folder), run the tool, and each recording e
 - Batch processing of audio in a folder (optional recursion into subfolders) or a single file
 - Converts media to 16 kHz mono WAV via ffmpeg when needed
 - Runs whisper.cpp and builds HTML from its JSON output
-- Models are picked by key from `config.mjs`; `npm run get` downloads/quantizes them
-- **VAD** (Voice Activity Detection) via Silero, on by default when `config.mjs` has an `isVAD` model
+- Models are picked by key from `config.js`; `npm run get` downloads/quantizes them
+- **VAD** (Voice Activity Detection) via Silero, on by default when `config.js` has an `isVAD` model
 - Interactive transcript: click a line or timestamp to seek the player
 - Live highlight of the current segment while audio plays
 - In-page search and **Download SRT**
@@ -31,10 +31,10 @@ Drop files into `input/` (or another folder), run the tool, and each recording e
 
 | Dependency | Purpose |
 |---|---|
-| **Node.js** ≥ 18 | Runs `start.mjs` |
+| **Node.js** ≥ 18 | Runs `start.js` |
 | **ffmpeg** | Converts input audio/video to WAV (`ffmpeg` on `PATH`) |
 | **whisper.cpp** | `whisper-cli` binary; `quantize` binary only for quantized models built locally |
-| **Models** | `ggml-*.bin` whisper models and the Silero VAD model, listed in `config.mjs` |
+| **Models** | `ggml-*.bin` whisper models and the Silero VAD model, listed in `config.js` |
 
 No npm runtime dependencies beyond Node itself (`"type": "module"` CLI).
 
@@ -48,7 +48,7 @@ No npm runtime dependencies beyond Node itself (`"type": "module"` CLI).
    cd whisper-generator
    ```
 
-3. Set `whisperDir` in `config.mjs` to your whisper.cpp folder and fetch the models:
+3. Set `whisperDir` in `config.js` to your whisper.cpp folder and fetch the models:
 
    ```bash
    npm run get
@@ -62,7 +62,7 @@ No npm runtime dependencies beyond Node itself (`"type": "module"` CLI).
 
 5. Open the `.html` inside each `_OUT …` folder (the HTML references the original audio by filename, which is packed into the same folder).
 
-## Configuration: `config.mjs`
+## Configuration: `config.js`
 
 ```js
 export default {
@@ -102,8 +102,8 @@ Model fields:
 npm start -- [options]
 npm run start-debug        # same as: npm start -- --debug
 npm run start-tmp          # same as: npm start -- --debug --input ./tmp
-npm run get                # download / quantize models from config.mjs
-node start.mjs [options]
+npm run get                # download / quantize models from config.js
+node start.js [options]
 # after npm link / install of the bin:
 whisper-html [options]
 ```
@@ -117,7 +117,7 @@ whisper-html [options]
 | `--recurse` | `-r` | `false` | Process nested folders (`_OUT …` folders are skipped) |
 | `--force` | `-f` | `false` | Re-run whisper even if JSON already exists |
 | `--debug` | `-d` | `false` | Don't pack into `_OUT …`; keep all files, including the intermediate `.wav`, next to the source |
-| `--modelKey <key>` | | model with `isDefault` | Whisper model key from `config.mjs` |
+| `--modelKey <key>` | | model with `isDefault` | Whisper model key from `config.js` |
 | `--vadModel <path>` | | first `isVAD` model | Silero VAD model; VAD is off if there is none |
 | `--lang <code>` | `-l` | `ru` | Recognition language (`ru`, `en`, `auto`, …) |
 | `--threads <n>` | | `12` | whisper.cpp thread count |
@@ -177,14 +177,14 @@ Open the HTML from the same directory as the audio so the relative `src` resolve
 
 ```
 whisper-generator/
-├── start.mjs              # CLI entry (bin: whisper-html); banner + batch runner + packing
-├── config.mjs             # whisperDir and model list
+├── start.js               # CLI entry (bin: whisper-html); banner + batch runner + packing
+├── config.js              # whisperDir and model list
 ├── lib/
-│   ├── cli-options.mjs    # Named flags & help
-│   ├── get-models.mjs     # npm run get: download / quantize models
-│   ├── segment-parser.mjs # whisper JSON → segments
-│   ├── html-generator.mjs # Interactive HTML
-│   └── timestamp-utils.mjs
+│   ├── cli-options.js     # Named flags & help
+│   ├── get-models.js      # npm run get: download / quantize models
+│   ├── segment-parser.js  # whisper JSON → segments
+│   ├── html-generator.js  # Interactive HTML
+│   └── timestamp-utils.js
 ├── types.d.ts             # Shared JSDoc types
 ├── input/                 # Default drop folder for media
 └── package.json

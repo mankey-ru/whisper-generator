@@ -12,6 +12,6 @@
 		"maxNodeModuleJsDepth": 0,
 		"types": ["node"]
 	},
-	"include": ["*.mjs", "lib/**/*.mjs", "types.d.ts"],
+	"include": ["*.js", "lib/**/*.js", "types.d.ts"],
 	"exclude": ["input", "tmp", "node_modules"]
 }
