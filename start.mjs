@@ -335,8 +335,7 @@ async function runBatch(opts) {
 		}
 
 		if (!opts.keep) {
-			fs.unlink(wavFilePath);
-			fs.unlink(jsonFilePath);
+			await fs.rm(wavFilePath, { force: true });
 		}
 
 		console.log(`\t✅ File done: ${originalFileBaseName}`);
