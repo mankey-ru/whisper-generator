@@ -86,7 +86,8 @@ export interface CliOptions {
 	model: string;
 	input: string;
 	lang: string;
-	keep: boolean;
+	/** Skip packing into an _OUT folder, keep intermediate files next to the source */
+	debug: boolean;
 	/** Colour tokens by confidence in HTML */
 	colors: boolean;
 	threads: number;

@@ -9,8 +9,8 @@
   },
   "scripts": {
     "start": "node .",
-    "start-keep": "npm start -- --keep",
-    "start-tmp": "npm start -- --keep --input ./tmp",
+    "start-debug": "npm start -- --debug",
+    "start-tmp": "npm start -- --debug --input ./tmp",
     "get": "node ./lib/get-models.mjs"
   },
   "author": "mankey-ru",

@@ -30,6 +30,32 @@ async function fileExists(p) {
 /** @type {readonly string[]} */
 const AUDIO_EXTS = ['.mp3', '.m4a', '.ogg', '.flac', '.aac', '.mp4']; // , '.wav'
 
+/** Префикс папок с упакованными результатами; такие папки не обходятся при поиске исходников */
+const OUT_DIR_PREFIX = '_OUT ';
+
+/**
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isAudioFile(filePath) {
+	return AUDIO_EXTS.includes(path.extname(filePath).toLowerCase());
+}
+
+/**
+ * Исходники для обработки: сам input, если это файл, иначе аудиофайлы в папке input.
+ * @param {string} input
+ * @param {boolean} recurse
+ * @returns {Promise<string[]>}
+ */
+async function findInputFiles(input, recurse) {
+	const stat = await fs.stat(input).catch(() => null);
+	if (stat?.isFile()) {
+		return isAudioFile(input) ? [input] : [];
+	}
+	await fs.mkdir(input, { recursive: true });
+	return findAudioFiles(input, recurse);
+}
+
 /**
  * @param {string} dir
  * @param {boolean} recurse
@@ -52,10 +78,9 @@ async function findAudioFiles(dir, recurse) {
 		for (const entry of entries) {
 			const full = path.join(current, entry.name);
 			if (entry.isDirectory()) {
-				if (recurse) await walk(full);
+				if (recurse && !entry.name.startsWith(OUT_DIR_PREFIX)) await walk(full);
 			} else if (entry.isFile()) {
-				const ext = path.extname(entry.name).toLowerCase();
-				if (AUDIO_EXTS.includes(ext)) {
+				if (isAudioFile(entry.name)) {
 					results.push(full);
 				}
 			}
@@ -236,15 +261,71 @@ async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName,
 }
 
 /**
+ * Метка запуска для имён папок _OUT, локальное время: `2026-10-01 14-30`
+ * @param {Date} date
+ * @returns {string}
+ */
+function formatRunStamp(date) {
+	const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}-${pad(date.getMinutes())}`;
+}
+
+/**
+ * Создаёт рядом с исходником папку `_OUT [метка] <исходник> [модель]`, при совпадении — с суффиксом ` (2)`, ` (3)`...
+ * @param {string} dir
+ * @param {string} baseName
+ * @returns {Promise<string>}
+ */
+async function createOutDir(dir, baseName) {
+	for (let n = 1; ; n++) {
+		const outDir = path.join(dir, n === 1 ? baseName : `${baseName} (${n})`);
+		try {
+			await fs.mkdir(outDir);
+			return outDir;
+		} catch (err) {
+			if (/** @type {NodeJS.ErrnoException} */ (err).code !== 'EEXIST') throw err;
+		}
+	}
+}
+
+/**
+ * Упаковывает исходник, JSON и HTML в папку _OUT и удаляет промежуточный wav.
+ * Исходник переносится первым: если он занят (например, открыт в плеере),
+ * папка удаляется и всё остаётся рядом с исходником — следующий запуск упакует из кэша.
+ * @param {{ originalFilePath: string, jsonFilePath: string, htmlFilePath: string, wavFilePath: string, outDirName: string }} files
+ * @returns {Promise<string | null>} путь к папке или null, если упаковать не удалось
+ */
+async function packResult({ originalFilePath, jsonFilePath, htmlFilePath, wavFilePath, outDirName }) {
+	const outDir = await createOutDir(path.dirname(originalFilePath), outDirName);
+	/** @param {string} filePath */
+	const moveIn = (filePath) => fs.rename(filePath, path.join(outDir, path.basename(filePath)));
+	try {
+		await moveIn(originalFilePath);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(
+			`\t❌ Результат готов, но исходник не перенесён (закрой его и запусти ещё раз): ${message}`,
+		);
+		await fs.rmdir(outDir);
+		return null;
+	}
+	await moveIn(jsonFilePath);
+	await moveIn(htmlFilePath);
+	await fs.rm(wavFilePath, { force: true });
+	return outDir;
+}
+
+/**
  * @param {import('./types.js').CliOptions} opts
  * @returns {Promise<void>}
  */
 async function runBatch(opts) {
 	const inputDir = opts.input;
+	const runStamp = formatRunStamp(new Date());
+	/** @type {string[]} */
+	const outDirs = [];
 
-	await fs.mkdir(inputDir, { recursive: true });
-
-	const files = await findAudioFiles(inputDir, opts.recurse);
+	const files = await findInputFiles(inputDir, opts.recurse);
 
 	if (files.length === 0) {
 		console.log(`No input files found in ${inputDir}`);
@@ -267,16 +348,17 @@ async function runBatch(opts) {
 		const originalFileBaseName = path.basename(originalFilePath, ext);
 		const originalFileName = path.basename(originalFilePath);
 
-		const wavFileName = `${originalFileBaseName}.wav`;
+		// рабочие файлы именуются с расширением исходника, чтобы a.mp3 и a.mp4 не делили a.wav/a.json
+		const wavFileName = `${originalFileName}.wav`;
 		const wavFilePath = path.join(dir, wavFileName);
 
 		//const txtFileName = `${originalFileBaseName}.txt`;
 		//const txtFilePath = path.join(dir, txtFileName);
 
-		const jsonFileName = `${originalFileBaseName}.json`;
+		const jsonFileName = `${originalFileName}.json`;
 		const jsonFilePath = path.join(dir, jsonFileName);
 
-		const htmlFilePath = path.join(dir, `${originalFileBaseName}.html`);
+		const htmlFilePath = path.join(dir, `${originalFileName}.html`);
 
 		console.log(
 			`\nProcessing: ${inspect(
@@ -302,6 +384,8 @@ async function runBatch(opts) {
 			// console.log(`..........Processing: ${originalFileName}`);
 			const wavFileOk = await ensureWav(originalFilePath, wavFilePath);
 			if (wavFileOk) {
+				// TODO: проверить, не мёртвый ли это код и нужен ли второй вызов ensureWav вообще:
+				// wav к этому моменту уже создан первым вызовом, так что здесь он, похоже, всегда сразу возвращает true
 				if (await ensureWav(originalFilePath, wavFilePath)) {
 					const whisperOk = await runWhisper(wavFilePath, jsonFilePath, opts);
 					if (!whisperOk) {
@@ -334,8 +418,19 @@ async function runBatch(opts) {
 			continue;
 		}
 
-		if (!opts.keep) {
-			await fs.rm(wavFilePath, { force: true });
+		if (!opts.debug) {
+			const outDir = await packResult({
+				originalFilePath,
+				jsonFilePath,
+				htmlFilePath,
+				wavFilePath,
+				outDirName: `${OUT_DIR_PREFIX}[${runStamp}] ${originalFileName} [${opts.modelKey}]`,
+			});
+			if (!outDir) {
+				continue;
+			}
+			outDirs.push(outDir);
+			console.log(`\t📁 Packed: ${outDir}`);
 		}
 
 		console.log(`\t✅ File done: ${originalFileBaseName}`);
@@ -344,6 +439,12 @@ async function runBatch(opts) {
 
 	printLine('=');
 	console.log('\n Processing complete.');
+	if (outDirs.length > 0) {
+		console.log(`\nResult folders (${outDirs.length}):`);
+		for (const outDir of outDirs) {
+			console.log(`\t${outDir}`);
+		}
+	}
 }
 
 /**
@@ -368,7 +469,7 @@ function printBanner(opts) {
 		'input',
 		'recurse',
 		'force',
-		'keep',
+		'debug',
 		'colors',
 		'lang',
 		'threads',
