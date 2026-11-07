@@ -97,9 +97,7 @@ async function findAudioFiles(dir, recurse) {
  * @returns {Promise<number>}
  */
 function runCmd(cmd, args, options = {}) {
-	console.log(
-		`\tRunning command${options.cwd ? ` (cwd: ${options.cwd})` : ''}:\n\t\t${cmd} ${args.join(' ')}`,
-	);
+	console.log(`\tRunning command${options.cwd ? ` (cwd: ${options.cwd})` : ''}:\n\t\t${cmd} ${args.join(' ')}`);
 	return new Promise((resolve) => {
 		const child = spawn(cmd, args, { stdio: 'inherit', cwd: options.cwd });
 		child.on('error', (/** @type {Error} */ err) => {
@@ -124,7 +122,7 @@ async function ensureWav(inputFile, wavFile) {
 
 	const inputFileExt = path.extname(inputFile).toLowerCase();
 
-	// AAC которые записаны рекордером андроида (конкретно NotingOS) пишутся в Raw AAC 
+	// AAC которые записаны рекордером андроида (конкретно NotingOS) пишутся в Raw AAC
 	// и нуждаются в явном указании формата и всё равно выдают ошибки
 	// Input buffer exhausted before END element found	и 	Error submitting packet to decoder: Invalid data found when processing input
 	// но теряются какие-то миллисекунды
@@ -160,7 +158,6 @@ async function ensureWav(inputFile, wavFile) {
  * @returns {string[]}
  */
 function buildWhisperArgs(wavFile, opts) {
-
 	// Long names from `whisper-cli --help`
 	return [
 		['--model', opts.model],
@@ -234,9 +231,7 @@ async function runWhisper(wavFilePath, jsonFilePath, opts) {
  */
 async function generateHtmlForFile(jsonFilePath, htmlFilePath, originalFileName, opts = {}) {
 	if (!(await fileExists(jsonFilePath))) {
-		console.warn(
-			`\t ⚠️ JSON file not found: ${path.basename(jsonFilePath)}, skipping HTML generation`,
-		);
+		console.warn(`\t ⚠️ JSON file not found: ${path.basename(jsonFilePath)}, skipping HTML generation`);
 		return false;
 	}
 	// console.log(`\tGenerating HTML for: ${path.basename(jsonFilePath)}`);
@@ -303,9 +298,7 @@ async function packResult({ originalFilePath, jsonFilePath, htmlFilePath, wavFil
 		await moveIn(originalFilePath);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		console.error(
-			`\t❌ Результат готов, но исходник не перенесён (закрой его и запусти ещё раз): ${message}`,
-		);
+		console.error(`\t❌ Результат готов, но исходник не перенесён (закрой его и запусти ещё раз): ${message}`);
 		await fs.rmdir(outDir);
 		return null;
 	}
@@ -334,9 +327,7 @@ async function runBatch(opts) {
 		return;
 	}
 
-	console.log(
-		`Found ${files.length} audio file(s) in ${inputDir}${opts.recurse ? ' (recursive)' : ''}`,
-	);
+	console.log(`Found ${files.length} audio file(s) in ${inputDir}${opts.recurse ? ' (recursive)' : ''}`);
 	console.log(`Using whisper: ${opts.whisper}`);
 	console.log(`Model: ${opts.model}`);
 	printLine('=');
@@ -465,18 +456,7 @@ function printBanner(opts) {
 	printLine('=');
 	console.log('Options:');
 	/** @type {(keyof import('./types.js').CliOptions)[]} */
-	const keys = [
-		'input',
-		'recurse',
-		'force',
-		'debug',
-		'colors',
-		'lang',
-		'threads',
-		'whisper',
-		'modelKey',
-		'model',
-	];
+	const keys = ['input', 'recurse', 'force', 'debug', 'colors', 'lang', 'threads', 'whisper', 'modelKey', 'model'];
 	for (const key of keys) {
 		const value = opts[key];
 		console.log(`\t${String(key).padEnd(10)} ${inspect(value, { colors: true, compact: true })}`);
