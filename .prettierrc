@@ -1,0 +1,7 @@
+# Reference: ~/.claude/.prettierrc (my-global-agent-rules).
+# Width, indent and line endings come from .editorconfig: never set
+# useTabs, tabWidth, printWidth or endOfLine here.
+singleQuote: true
+jsxSingleQuote: true
+trailingComma: all
+# ---- Project additions below; keep everything above verbatim ----

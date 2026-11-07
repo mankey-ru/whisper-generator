@@ -1,0 +1,3 @@
+# Reference: ~/.claude/.gitattributes (my-global-agent-rules).
+* text=auto eol=lf
+# ---- Project additions below; keep everything above verbatim ----
