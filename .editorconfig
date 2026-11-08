@@ -10,7 +10,7 @@ indent_style = tab
 indent_size = 4
 quote_type = single
 curly_bracket_next_line = false
-# Prettier takes printWidth from here; keeps long inline arrow functions on one line
+# Prettier takes printWidth from here (its default, 80, breaks long inline arrow functions)
 max_line_length = 120
 
 [{*.json,*.yml,*.yaml,.prettierrc}]
@@ -22,5 +22,15 @@ indent_style = space
 
 [*.svg]
 insert_final_newline = false
+
+# Windows scripts: CRLF (cmd.exe misreads LF batch files), 4 spaces
+[*.{ps1,psd1,psm1,bat,iss}]
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+
+# Windows PowerShell 5.1 reads files without a BOM as ANSI; no BOM in .bat
+[*.{ps1,psd1,psm1}]
+charset = utf-8-bom
 
 # ---- Project additions below; keep everything above verbatim ----
